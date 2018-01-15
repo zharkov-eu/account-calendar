@@ -1,0 +1,21 @@
+{
+  "name": "account-calendar",
+  "version": "0.1.0",
+  "description": "Учет рабочего времени сотрудников",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Evgeni Zharkov",
+  "license": "ISC",
+  "devDependencies": {
+    "eslint": "^4.15.0",
+    "eslint-config-airbnb-base": "^12.1.0",
+    "eslint-plugin-import": "^2.8.0",
+    "mocha": "^4.1.0"
+  },
+  "dependencies": {
+    "express": "^4.16.2",
+    "mongodb": "^3.0.1"
+  }
+}
