@@ -1,17 +1,13 @@
-export default class EntryDate {
+class EntryDate {
   static deserialize(serialized) {
-    const dateParts = serialized.split('-');
-    const date = new Date();
-
-    date.setFullYear(dateParts[0], dateParts[1] - 1, dateParts[2]);
-    date.setHours(0, 0, 0);
-    return new EntryDate(date);
+    return new EntryDate(new Date(serialized));
   }
 
   /**
    * @param {Date} date
    */
   constructor(date) {
+    if (!(date instanceof Date) || isNaN(date.getTime())) throw new Error("Date can't be parsed");
     this._date = date;
   }
 
@@ -23,9 +19,11 @@ export default class EntryDate {
   }
 
   /**
-   * @returns {string} - сериализованное представление
+   * @returns {number} - сериализованное представление
    */
   serialize() {
-    return `${this._date.getFullYear()}-${this._date.getMonth() + 1}-${this._date.getDate()}`;
+    return this.date.getTime();
   }
 }
+
+module.exports = EntryDate;

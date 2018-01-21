@@ -28,4 +28,4 @@ const AccountService = {
   delete: ({ email }) => accountRepository.delete({ email }),
 };
 
-export default AccountService;
+module.exports = AccountService;

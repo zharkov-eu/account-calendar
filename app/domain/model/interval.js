@@ -1,13 +1,22 @@
-export default class Interval {
+/**
+ * @param number
+ * @returns {string}
+ */
+function zeroBased(number) {
+  return number.toString().length === 2 ? number.toString() : `0${number}`;
+}
+
+
+class Interval {
   static deserialize(date, serialized) {
     const start = new Date();
     const end = new Date();
-    const intervalParts = serialized.split(':');
+    const intervalPoint = serialized.split('-').map(point => point.split(':'));
 
     start.setFullYear(date.getFullYear(), date.getMonth(), date.getDate());
-    start.setHours(parseInt(intervalParts[0], 10), parseInt(intervalParts[1], 10));
+    start.setHours(parseInt(intervalPoint[0][0], 10), parseInt(intervalPoint[0][1], 10));
     end.setFullYear(date.getFullYear(), date.getMonth(), date.getDate());
-    end.setHours(parseInt(intervalParts[0], 10), parseInt(intervalParts[1], 10));
+    end.setHours(parseInt(intervalPoint[1][0], 10), parseInt(intervalPoint[1][1], 10));
     return new Interval(start, end);
   }
 
@@ -38,6 +47,12 @@ export default class Interval {
    * @returns {string} - сериализованное представление
    */
   serialize() {
-    return `${this.start.getHours()}:${this.start.getMinutes()}-${this.end.getHours()}:${this.end.getMinutes()}`;
+    const parts = [
+      this.start.getHours(), this.start.getMinutes(),
+      this.end.getHours(), this.end.getMinutes(),
+    ].map(_ => zeroBased(_));
+    return `${parts[0]}:${parts[1]}-${parts[2]}:${parts[3]}`;
   }
 }
+
+module.exports = Interval;

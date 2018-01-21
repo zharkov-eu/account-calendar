@@ -1,8 +1,8 @@
-import Interval from './model/interval';
-import EntryDate from './model/entrydate';
+const Interval = require('./model/interval');
+const EntryDate = require('./model/entrydate');
 
-export default class Entry {
-  static deserialise(entry) {
+class Entry {
+  static deserialize(entry) {
     return new Entry({
       email: entry.email,
       date: EntryDate.deserialize(entry.date),
@@ -49,3 +49,5 @@ export default class Entry {
     };
   }
 }
+
+module.exports = Entry;

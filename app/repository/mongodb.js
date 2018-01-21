@@ -1,8 +1,10 @@
-import * as mongodb from 'mongodb';
-import config from '../../config.json';
-import { DataAccessError } from '../error';
+const mongodb = require('mongodb');
+const config = require('../../config.json');
+const { EntityNotFoundError, DataAccessError } = require('../error');
 
-export default class MongoRepository {
+function timeout(ms) { return new Promise(resolve => setTimeout(_ => resolve(_), ms)); }
+
+class MongoRepository {
   /**
    * @param clazz - domain class
    * @param {String} collectionString
@@ -10,22 +12,34 @@ export default class MongoRepository {
   constructor(clazz, collectionString) {
     this.clazz = clazz;
     this.collectionString = collectionString;
+    this._semaphore = { open: false, close: false };
   }
 
   async openDbConnection() {
-    if (!this.collection) {
-      const connectAuth = config.dbUser ? `${config.dbUser}:${config.dbPassword}@` : '';
-      const connectString = `mongodb://${connectAuth}${config.dbUrl}`;
-      this.dbConnection = await mongodb.MongoClient.connect(connectString);
-      this.collection = this.dbConnection.collection(this.collectionString);
+    if (!this._semaphore.open && !this.collection) {
+      const connectAuth = config.mongodb.user ? `${config.mongodb.user}:${config.mongodb.password}@` : '';
+      const connectString = `mongodb://${connectAuth}${config.mongodb.host}/${config.mongodb.database}`;
+      this.client = await mongodb.MongoClient.connect(connectString);
+      this.collection = this.client.db(config.mongodb.database).collection(this.collectionString);
+    } else if (!this.collection) {
+      await timeout(500);
+      await this.openDbConnection();
     }
   }
 
-  async closeDbCollection() {
-    if (this.dbConnection) {
-      await this.dbConnection.close();
-      this.dbConnection = null;
+  async closeDbConnection() {
+    if (!this._semaphore.close && this.client) {
+      await this.client.close();
+      this.client = undefined;
+    } else if (this.client) {
+      await timeout(500);
+      await this.closeDbConnection();
     }
+  }
+
+  async getCollection() {
+    await this.connection();
+    return this.collection;
   }
 
   async findAll(query) {
@@ -44,15 +58,17 @@ export default class MongoRepository {
 
   async findOne(query) {
     await this.connection();
-    return this.clazz.deserialise(await this.collection.findOne(query));
+    const entity = await this.collection.findOne(query);
+    if (!entity) throw new EntityNotFoundError(query);
+    return this.clazz.deserialize(entity);
   }
 
 
   async save(entity) {
     await this.connection();
     try {
-      await this.collection.insertOne(entity);
-      return this.clazz.deserialise(entity);
+      await this.collection.insertOne(entity.serialise());
+      return entity;
     } catch (error) {
       throw new DataAccessError(error, JSON.stringify(entity));
     }
@@ -61,8 +77,8 @@ export default class MongoRepository {
   async update(query, entity) {
     await this.connection();
     try {
-      await this.collection.updateOne(query, entity);
-      return this.clazz.deserialise(entity);
+      const updated = await this.collection.findOneAndUpdate(query, { $set: entity.serialise() });
+      return this.clazz.deserialize(updated.value);
     } catch (error) {
       throw new DataAccessError(error, JSON.stringify(entity));
     }
@@ -74,8 +90,10 @@ export default class MongoRepository {
   }
 
   async connection() {
-    if (!this.dbConnection) {
+    if (!this.client) {
       await this.openDbConnection();
     }
   }
 }
+
+module.exports = MongoRepository;

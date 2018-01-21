@@ -1,5 +1,8 @@
 {
-  "dbUser": "",
-  "dbPassword": "",
-  "dbUrl": "localhost/calendar"
+  "mongodb": {
+    "user": "",
+    "password": "",
+    "host": "localhost",
+    "database": "accountcalendar"
+  }
 }

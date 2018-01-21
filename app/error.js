@@ -1,4 +1,4 @@
-export class RequiredPropsError extends Error {
+exports.RequiredPropsError = class RequiredPropsError extends Error {
   /**
    * @param {String} message
    * @param {String} propName
@@ -7,9 +7,9 @@ export class RequiredPropsError extends Error {
     super(message);
     this.propName = propName;
   }
-}
+};
 
-export class DataAccessError extends Error {
+exports.DataAccessError = class DataAccessError extends Error {
   /**
    * @param {String} message
    * @param {String} entity
@@ -18,4 +18,16 @@ export class DataAccessError extends Error {
     super(message);
     this.entity = entity;
   }
-}
+};
+
+exports.EntityNotFoundError = class EntityNotFoundError extends Error {
+  /**
+   * @param {Object} query
+   */
+  constructor(query) {
+    const message = `Entity by query = ${JSON.stringify(query)} not found`;
+    super(message);
+    console.error(message);
+    this.query = query;
+  }
+};
