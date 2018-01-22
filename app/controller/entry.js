@@ -9,7 +9,22 @@ const EntryController = {
 
   getAll: async (req, res) => {
     try {
-      return res.json({ });
+      const email = req.body.email;
+      const page = parseInt(req.query.page, 10);
+      const size = parseInt(req.query.size, 10);
+
+      let entries = [];
+
+      if (!isNaN(page) && !isNaN(size)) {
+        entries = email
+          ? await entryRepository.findAllPageable({ email }, page, size)
+          : await entryRepository.findAllPageable({}, page, size);
+        entries.content.map(entry => entry.serialise({ view: true }));
+      } else {
+        entries = [];
+      }
+
+      return res.json({ entry: entries });
     } catch (error) {
       return errorController(error, req, res);
     }
@@ -17,8 +32,8 @@ const EntryController = {
 
   get: async (req, res) => {
     try {
-      const entry = entryRepository.findOne({ _id: new ObjectID(req.params.id) });
-      return res.json(entry.serialise());
+      const entry = await entryRepository.findOne({ _id: new ObjectID(req.params.id) });
+      return res.json(entry.serialise({ view: true }));
     } catch (error) {
       return errorController(error, req, res);
     }
@@ -26,7 +41,10 @@ const EntryController = {
 
   post: async (req, res) => {
     try {
-      return res.status(201).json({ });
+      const entry = new Entry(req.body);
+      const entrySaved = await entryRepository.save(entry);
+      res.header('Location', `/entry/${entrySaved.id}`);
+      return res.status(201).json(entry.serialise({ view: true }));
     } catch (error) {
       return errorController(error, req, res);
     }
@@ -42,6 +60,7 @@ const EntryController = {
 
   delete: async (req, res) => {
     try {
+      await entryRepository.delete({ _id: new ObjectID(req.params.id) });
       return res.status(204).send();
     } catch (error) {
       return errorController(error, req, res);

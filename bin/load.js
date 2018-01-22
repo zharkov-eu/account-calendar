@@ -7,7 +7,7 @@ const Account = require('../app/domain/account');
 const Entry = require('../app/domain/entry');
 const EntryDate = require('../app/domain/model/entrydate');
 const Interval = require('../app/domain/model/interval');
-const Status = require('../app/domain/model/status');
+const { StatusEnum } = require('../app/domain/model/status');
 const LoadRepository = require('../app/repository/load');
 
 const loadFile = process.argv[2] || path.join('.', 'dist', 'workdays-testdata-04082017.json');
@@ -26,7 +26,7 @@ class LoadTransform extends Transform {
     const _dateFinish = new Date(_dateStart.getTime() + (23 * 60 * 60 * 1000));
     const date = new EntryDate(_dateStart);
     const interval = new Interval(_dateStart, _dateFinish);
-    const status = Status[object.status];
+    const status = StatusEnum[object.status];
     const entry = new Entry({ email: object.email, date, interval, status });
 
     this.push({ account, entry });
