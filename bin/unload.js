@@ -1,17 +1,19 @@
 const fs = require('fs');
 const path = require('path');
-const { Transform } = require('stream');
+const {Transform} = require('stream');
 const packageJson = require('../package.json');
+const {setDatabase} = require('../app/repository/mongo');
+const {openDbConnection, closeDbCollection} = require('../app/repository/connect');
 const Account = require('../app/domain/account');
 const Entry = require('../app/domain/entry');
-const LoadRepository = require('../app/repository/load');
+const {LoadRepository} = require('../app/repository/load');
 const mkdir = require('../app/lib/mkdir');
 
 const unloadDir = process.argv[2] || path.join('.', 'dist');
 
 class UnloadTransform extends Transform {
   constructor(transform) {
-    super({ objectMode: true });
+    super({objectMode: true});
     this.transform = transform;
   }
 
@@ -22,33 +24,56 @@ class UnloadTransform extends Transform {
   }
 }
 
-(async () => {
-  let counter = 2;
-  console.log(`${packageJson.name} version ${packageJson.version} unload data started`);
+class Unload {
+  constructor() {
+    this.endCounter = 0;
+    this.repository = [];
+    this.transform = [];
+    this.writeStream = [];
+  }
 
-  mkdir(unloadDir);
-  const accountRepository = new LoadRepository(Account, 'account');
-  const entryRepository = new LoadRepository(Entry, 'entry');
+  register(clazz, collection, filename) {
+    this.repository.push(new LoadRepository(clazz, collection));
+    this.transform.push(new UnloadTransform(entity => ({...entity, ...{_id: undefined}})));
+    this.writeStream.push(fs.createWriteStream(path.join(unloadDir, filename)));
+    this.endCounter++;
+  }
 
-  const accountTransform = new UnloadTransform(account => ({ ...account, ...{ _id: undefined } }));
-  const entryTransform = new UnloadTransform(entry => ({ ...entry, ...{ _id: undefined } }));
+  async unload() {
+    this.repository.forEach(async (repository, index) => {
+      const unloadStream = await repository.unloadStream();
+      const transformStream = this.transform[index];
+      const writeStream = this.writeStream[index];
 
-  const accountWriteStream = fs.createWriteStream(path.join(unloadDir, 'account.json'));
-  const entryWriteStream = fs.createWriteStream(path.join(unloadDir, 'entry.json'));
+      unloadStream.on('error', err => console.error(err.message));
+      transformStream.on('error', err => console.error(err.message));
+      writeStream.on('error', err => console.error(err.message));
 
-  const accountUnloadStream = await accountRepository.unloadStream();
-  const entryUnloadStream = await entryRepository.unloadStream();
+      unloadStream.pipe(transformStream).pipe(writeStream);
+      writeStream.on('finish', this.end.bind(this));
+    });
+  }
 
-  function onFinish() {
-    if (--counter === 0) {
-      console.log(`${packageJson.name} version ${packageJson.version} unload data ended`);
+  async end() {
+    if (--this.endCounter === 0) {
+      await closeDbCollection();
+      console.log(`${packageJson.name} version ${packageJson.version} load log ended`);
       process.exit(0);
     }
   }
+}
 
-  accountWriteStream.on('finish', onFinish);
-  entryWriteStream.on('finish', onFinish);
+(async () => {
+  // Инициализировать подключение к БД
+  setDatabase(await openDbConnection());
 
-  accountUnloadStream.pipe(accountTransform).pipe(accountWriteStream);
-  entryUnloadStream.pipe(entryTransform).pipe(entryWriteStream);
+  console.log(`${packageJson.name} version ${packageJson.version} unload data started`);
+  mkdir(unloadDir);
+
+  const unload = new Unload();
+
+  unload.register(Account, 'account', 'account.json');
+  unload.register(Entry, 'entry', 'entry.json');
+
+  await unload.unload();
 })();

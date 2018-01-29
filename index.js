@@ -2,8 +2,10 @@ const http = require('http');
 const express = require('express');
 const bodyParser = require('body-parser');
 const router = require('./app/router');
+const errorHandler = require('./app/middleware/error');
+const {setDatabase} = require('./app/repository/mongo');
+const {openDbConnection} = require('./app/repository/connect');
 
-// noinspection TsLint
 const packageJson = require('./package.json');
 
 const port = parseInt(process.argv[2], 10) || 8000;
@@ -43,5 +45,12 @@ function onListening() {
 server.on('error', onError);
 server.on('listening', onListening);
 
-app.use(router);
-server.listen(port);
+(async () => {
+  // Инициализировать подключение к БД
+  setDatabase(await openDbConnection());
+
+  app.use(router);
+  app.use(errorHandler());
+
+  server.listen(port);
+})();

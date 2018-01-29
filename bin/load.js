@@ -1,25 +1,27 @@
 const fs = require('fs');
 const path = require('path');
-const { Transform, Writable } = require('stream');
+const {Transform, Writable} = require('stream');
 const JSONStream = require('JSONStream');
 const packageJson = require('../package.json');
+const {setDatabase} = require('../app/repository/mongo');
+const {openDbConnection} = require('../app/repository/connect');
 const Account = require('../app/domain/account');
 const Entry = require('../app/domain/entry');
 const EntryDate = require('../app/domain/model/entrydate');
 const Interval = require('../app/domain/model/interval');
-const { StatusEnum } = require('../app/domain/model/status');
-const LoadRepository = require('../app/repository/load');
+const {StatusEnum} = require('../app/domain/model/status');
+const {LoadRepository} = require('../app/repository/load');
 
 const loadFile = process.argv[2] || path.join('.', 'dist', 'workdays-testdata-04082017.json');
 
 class LoadTransform extends Transform {
   constructor() {
-    super({ objectMode: true });
+    super({objectMode: true});
   }
 
   _transform(object, encoding, done) {
     // Account generation
-    const account = new Account({ email: object.email, name: object.name });
+    const account = new Account({email: object.email, name: object.name});
 
     // Entry generation
     const _dateStart = new Date(`${object.date.split('.').reverse().join('-')}T00:00:00`);
@@ -27,16 +29,16 @@ class LoadTransform extends Transform {
     const date = new EntryDate(_dateStart);
     const interval = new Interval(_dateStart, _dateFinish);
     const status = StatusEnum[object.status];
-    const entry = new Entry({ email: object.email, date, interval, status });
+    const entry = new Entry({email: object.email, date, interval, status});
 
-    this.push({ account, entry });
+    this.push({account, entry});
     done();
   }
 }
 
 class MongoInsert extends Writable {
   constructor(accountRepository, entryRepository, batchSize) {
-    super({ objectMode: true });
+    super({objectMode: true});
     this.accountRepository = accountRepository;
     this.entryRepository = entryRepository;
     this.batchSize = batchSize;
@@ -48,7 +50,7 @@ class MongoInsert extends Writable {
       promises.push(this.entryRepository
         .insertBatch(this.entries));
       promises.push(this.accountRepository
-        .upsertBatch(this.accounts.map(account => ({ email: account.email })), this.accounts));
+        .upsertBatch(this.accounts.map(account => ({email: account.email})), this.accounts));
 
       Promise.all(promises).then(() => {
         console.log(`${packageJson.name} version ${packageJson.version} load data successfully ended`);
@@ -69,7 +71,7 @@ class MongoInsert extends Writable {
       promises.push(this.entryRepository
         .insertBatch(this.entries));
       promises.push(this.accountRepository
-        .upsertBatch(this.accounts.map(account => ({ email: account.email })), this.accounts));
+        .upsertBatch(this.accounts.map(account => ({email: account.email})), this.accounts));
 
       this.entries = [];
       this.accounts = [];
@@ -80,6 +82,9 @@ class MongoInsert extends Writable {
 }
 
 (async () => {
+  // Инициализировать подключение к БД
+  setDatabase(await openDbConnection());
+
   console.log(`${packageJson.name} version ${packageJson.version} load data started`);
 
   const accountRepository = new LoadRepository(Account, 'account');
@@ -88,6 +93,10 @@ class MongoInsert extends Writable {
   const readStream = fs.createReadStream(loadFile);
   const loadTransform = new LoadTransform();
   const mongoInsert = new MongoInsert(accountRepository, entryRepository, 1000);
+
+  readStream.on('error', err => console.error(err.message));
+  loadTransform.on('error', err => console.error(err.message));
+  mongoInsert.on('error', err => console.error(err.message));
 
   readStream.pipe(JSONStream.parse('*')).pipe(loadTransform).pipe(mongoInsert);
 })();

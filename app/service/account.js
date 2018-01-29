@@ -1,5 +1,5 @@
 import Account from '../domain/account';
-import MongoRepository from '../repository/mongodb';
+import MongoRepository from '../repository/mongo';
 import { RequiredPropsError } from '../error';
 
 const accountRepository = new MongoRepository(Account, 'account');

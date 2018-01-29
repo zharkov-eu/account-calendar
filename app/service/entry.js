@@ -1,5 +1,5 @@
 import Entry from '../domain/entry';
-import MongoRepository from '../repository/mongodb';
+import MongoRepository from '../repository/mongo';
 import { RequiredPropsError } from '../error';
 
 const entryRepository = new MongoRepository(Entry, 'entry');

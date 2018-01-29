@@ -1,9 +1,8 @@
-const MongoRepository = require('./mongodb');
+const {MongoRepository} = require('./mongo');
 
 class LoadRepository extends MongoRepository {
   async insertBatch(entities) {
-    await this.connection();
-    const batch = this.collection.initializeOrderedBulkOp();
+    const batch = this.getCollection().initializeOrderedBulkOp();
     entities.forEach((entity) => {
       batch.insert(typeof entity.serialise === 'function' ? entity.serialise() : entity);
     });
@@ -11,8 +10,7 @@ class LoadRepository extends MongoRepository {
   }
 
   async upsertBatch(query, entities) {
-    await this.connection();
-    const batch = this.collection.initializeOrderedBulkOp();
+    const batch = this.getCollection().initializeOrderedBulkOp();
     entities.forEach((entity, index) => {
       batch.find(query[index])
         .upsert()
@@ -22,9 +20,8 @@ class LoadRepository extends MongoRepository {
   }
 
   async unloadStream() {
-    await this.connection();
-    return this.collection.find({}).stream();
+    return this.getCollection().find({}).stream();
   }
 }
 
-module.exports = LoadRepository;
+exports.LoadRepository = LoadRepository;

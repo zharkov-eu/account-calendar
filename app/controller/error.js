@@ -1,21 +1,20 @@
-const errors = require('../error');
-
-function errorController(error, req, res) {
-  if (error instanceof errors.RequiredPropsError) {
-    return res.status(400).json({
-      message: error.message,
-      type: 'RequiredPropsError',
-    });
-  } else if (error instanceof errors.EntityNotFoundError) {
-    return res.status(404).json({
-      message: error.message,
-      type: 'EntityNotFoundError',
-    });
-  }
-  return res.status(500).json({
-    message: 'Internal Server Error',
-    type: 'UnknownError',
+/**
+ *
+ * @param {number} status
+ * @param {Error} error
+ * @param {express.Request} req
+ * @param {express.Response} res
+ */
+function errorResponse(status, error, req, res) {
+  return res.format({
+    'application/json': () => res.status(status).json(error),
+    default: () => res.status(406).send('Not Acceptable'),
   });
 }
 
-module.exports = errorController;
+const errorController = {
+  get: async (req, res) => errorResponse(404, new Error('Not Found'), req, res),
+};
+
+exports.errorController = errorController;
+exports.errorResponse = errorResponse;
